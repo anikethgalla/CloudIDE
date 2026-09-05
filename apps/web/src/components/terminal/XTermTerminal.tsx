@@ -97,11 +97,11 @@ export const XTermTerminal: React.FC<XTermTerminalProps> = ({
       setIsConnected(true);
       setIsConnecting(false);
       onConnectionChange?.(true);
-      term.writeln('\x1b[38;5;34m✔ Interactive sandbox terminal connected.\x1b[0m\r\n');
 
       // Send initial dimensions
       const { cols, rows } = term;
       ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+      term.focus();
     };
 
     ws.onmessage = (event) => {
@@ -173,7 +173,10 @@ export const XTermTerminal: React.FC<XTermTerminalProps> = ({
   };
 
   return (
-    <div className="h-full w-full relative flex flex-col bg-ide-bg select-text overflow-hidden">
+    <div
+      className="h-full w-full relative flex flex-col bg-ide-bg select-text overflow-hidden cursor-text"
+      onClick={() => xtermInstance.current?.focus()}
+    >
       {/* Terminal Container */}
       <div ref={terminalRef} className="flex-1 w-full h-full p-2" />
 
