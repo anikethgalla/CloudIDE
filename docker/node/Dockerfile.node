@@ -1,0 +1,17 @@
+FROM node:20-alpine
+
+# Create a non-root sandbox user
+RUN addgroup -S sandbox && adduser -S sandbox -G sandbox
+
+# Install basic development utilities
+RUN apk add --no-cache bash curl git
+
+# Set working directory inside sandbox
+WORKDIR /workspace
+
+# Give sandbox user permissions to workspace
+RUN chown -R sandbox:sandbox /workspace
+
+USER sandbox
+
+CMD ["/bin/bash"]
