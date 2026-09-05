@@ -1,4 +1,6 @@
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 import { TranscriptSegment } from '@cloud-ide/shared';
 
 export interface FetchedTranscriptResult {
@@ -10,6 +12,56 @@ export interface FetchedTranscriptResult {
 }
 
 export class TranscriptService {
+  private static resolvedPythonPath: string | null = null;
+
+  /**
+   * Discovers a Python executable that has youtube_transcript_api installed.
+   */
+  static getPythonExecutable(): string {
+    if (this.resolvedPythonPath) {
+      return this.resolvedPythonPath;
+    }
+
+    const candidates: string[] = [];
+
+    // 1. Explicit environment variable
+    if (process.env.PYTHON_PATH) {
+      candidates.push(process.env.PYTHON_PATH);
+    }
+
+    // 2. Windows standard python installation locations
+    const localAppData = process.env.LOCALAPPDATA || 'C:\\Users\\Aniketh Galla\\AppData\\Local';
+    const pyDirs = ['Python311', 'Python312', 'Python310', 'Python313', 'Python39'];
+    for (const ver of pyDirs) {
+      candidates.push(path.join(localAppData, 'Programs', 'Python', ver, 'python.exe'));
+    }
+
+    // 3. Common system names
+    candidates.push('py', 'python3', 'python');
+
+    for (const candidate of candidates) {
+      try {
+        if (candidate.includes('\\') || candidate.includes('/')) {
+          if (!fs.existsSync(candidate)) continue;
+        }
+
+        const testArgs = candidate === 'py' ? ['-3', '-c', 'import youtube_transcript_api'] : ['-c', 'import youtube_transcript_api'];
+        const res = spawnSync(candidate, testArgs, { timeout: 3000, encoding: 'utf-8' });
+        if (res.status === 0) {
+          this.resolvedPythonPath = candidate;
+          console.log(`[TranscriptService] Using verified Python executable: ${candidate}`);
+          return candidate;
+        }
+      } catch {
+        // Continue probing
+      }
+    }
+
+    // Default fallback
+    this.resolvedPythonPath = process.env.PYTHON_PATH || 'python';
+    return this.resolvedPythonPath;
+  }
+
   /**
    * Fetches transcript for a YouTube video using the youtube-transcript-api Python module.
    * Preserves exact timestamps, duration, and text snippets.
@@ -77,7 +129,12 @@ except Exception as e:
     print(json.dumps(err_output))
 `;
 
-      const pyProcess = spawn('python', ['-c', pyScript, videoId, languages.join(',')], {
+      const pyExe = this.getPythonExecutable();
+      const spawnArgs = pyExe === 'py'
+        ? ['-3', '-c', pyScript, videoId, languages.join(',')]
+        : ['-c', pyScript, videoId, languages.join(',')];
+
+      const pyProcess = spawn(pyExe, spawnArgs, {
         env: {
           ...process.env,
           PYTHONIOENCODING: 'utf-8',

@@ -11,7 +11,7 @@ export class GeminiService {
   static async generateJson<T>(
     systemInstruction: string,
     userPrompt: string,
-    model = 'gemini-1.5-flash'
+    model = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
   ): Promise<T> {
     const apiKey = process.env.GEMINI_API_KEY;
 
