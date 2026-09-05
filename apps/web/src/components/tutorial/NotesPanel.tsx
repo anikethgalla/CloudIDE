@@ -34,14 +34,27 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
   }, [projectId]);
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+    if (isNaN(seconds) || seconds < 0) return '0:00';
+    const totalSecs = Math.floor(seconds);
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    if (hrs > 0) {
+      return `${hrs}:${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
   const parseSecondsFromText = (timeStr: string): number | null => {
-    const parts = timeStr.split(':').map((p) => parseInt(p, 10));
-    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+    if (!timeStr) return null;
+    const clean = timeStr.replace(/[\[\]]/g, '').trim();
+    const parts = clean.split(':').map((p) => parseInt(p, 10));
+    if (parts.some((p) => isNaN(p))) return null;
+
+    if (parts.length === 3) {
+      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+    if (parts.length === 2) {
       return parts[0] * 60 + parts[1];
     }
     return null;
@@ -86,34 +99,43 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
   };
 
   const renderFormattedContent = (content: string) => {
-    // Replace [MM:SS] with clickable badges
-    const regex = /\[(\d{1,2}:\d{2})\]/g;
+    // Matches [H:MM:SS], [MM:SS], or standalone timestamps like 1:07 or 15:33
+    const regex = /\[?(\b\d{1,3}:\d{2}(?::\d{2})?\b)\]?/g;
     const elements: React.ReactNode[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 
     while ((match = regex.exec(content)) !== null) {
-      // Text before timestamp
-      if (match.index > lastIndex) {
-        elements.push(content.substring(lastIndex, match.index));
+      const fullMatch = match[0];
+      const timeStr = match[1];
+      const matchIndex = match.index;
+
+      if (matchIndex > lastIndex) {
+        elements.push(content.substring(lastIndex, matchIndex));
       }
 
-      const timeStr = match[1];
       const seconds = parseSecondsFromText(timeStr);
 
-      elements.push(
-        <button
-          key={`${match.index}-${timeStr}`}
-          onClick={() => seconds !== null && onSeek(seconds)}
-          className="inline-flex items-center space-x-1 px-1.5 py-0.5 mx-1 my-0.5 rounded bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-mono text-[11px] font-semibold border border-sky-500/30 transition-colors"
-          title={`Seek video to ${timeStr}`}
-        >
-          <Clock className="w-3 h-3" />
-          <span>{timeStr}</span>
-        </button>
-      );
+      if (seconds !== null) {
+        elements.push(
+          <button
+            key={`${matchIndex}-${timeStr}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSeek(seconds);
+            }}
+            className="inline-flex items-center space-x-1 px-1.5 py-0.5 mx-1 my-0.5 rounded bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-mono text-[11px] font-semibold border border-sky-500/30 transition-colors shadow-xs"
+            title={`Seek video to ${timeStr}`}
+          >
+            <Clock className="w-3 h-3 text-sky-400" />
+            <span>{timeStr}</span>
+          </button>
+        );
+      } else {
+        elements.push(fullMatch);
+      }
 
-      lastIndex = regex.lastIndex;
+      lastIndex = matchIndex + fullMatch.length;
     }
 
     if (lastIndex < content.length) {
@@ -134,10 +156,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
 
           <button
             onClick={handleInsertTimestamp}
-            className="flex items-center space-x-1 px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-sky-400 text-xs font-medium border border-zinc-700 transition-colors"
+            className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-sky-400 text-xs font-medium border border-zinc-700 transition-colors shadow-xs"
             title="Insert current video timestamp (Ctrl + Shift + M)"
           >
-            <Clock className="w-3 h-3" />
+            <Clock className="w-3.5 h-3.5" />
             <span>Insert [{formatTime(currentTime)}]</span>
           </button>
         </div>
@@ -146,13 +168,13 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
           rows={3}
           value={activeNoteText}
           onChange={(e) => setActiveNoteText(e.target.value)}
-          placeholder="Write your notes here... (Use [MM:SS] for clickable video timestamps)"
+          placeholder="Write your notes here... (Click 'Insert' or type [MM:SS] for clickable video timestamps)"
           className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-200 outline-none focus:border-sky-500 transition-colors custom-scrollbar"
         />
 
         <div className="flex justify-between items-center">
           <span className="text-[10px] text-zinc-500">
-            Supports Markdown &amp; clickable <code>[MM:SS]</code> timestamps
+            Supports Markdown &amp; clickable <code>[MM:SS]</code> / <code>[H:MM:SS]</code> timestamps
           </span>
 
           <div className="flex space-x-2">
@@ -185,12 +207,28 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
           notes.map((note) => (
             <div
               key={note.id}
-              className="group p-3 bg-zinc-900/70 hover:bg-zinc-900 border border-zinc-800/80 rounded-xl transition-all"
+              className="group p-3 bg-zinc-900/70 hover:bg-zinc-900 border border-zinc-800/80 rounded-xl transition-all space-y-2"
             >
-              <div className="flex items-start justify-between mb-1.5">
-                <span className="text-[10px] text-zinc-500 font-mono">
-                  {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {note.timestamp !== undefined && note.timestamp !== null && (
+                    <button
+                      onClick={() => onSeek(note.timestamp!)}
+                      className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 border border-sky-500/30 font-mono text-[11px] font-medium transition-all"
+                      title={`Seek video to ${formatTime(note.timestamp)}`}
+                    >
+                      <Clock className="w-3 h-3" />
+                      <span>Video @ {formatTime(note.timestamp)}</span>
+                    </button>
+                  )}
+                  <span className="text-[10px] text-zinc-500">
+                    {new Date(note.createdAt).toLocaleTimeString([], {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true,
+                    })}
+                  </span>
+                </div>
 
                 <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button

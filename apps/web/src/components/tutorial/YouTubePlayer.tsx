@@ -44,6 +44,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const timeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSeekTimestampRef = useRef<number>(0);
 
   // Initialize YouTube IFrame Player API
   useEffect(() => {
@@ -100,6 +101,9 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
 
     // High frequency time updater
     timeIntervalRef.current = setInterval(() => {
+      // Don't overwrite if an external seek was requested in the last 600ms
+      if (Date.now() - lastSeekTimestampRef.current < 600) return;
+
       if (playerRef.current && playerRef.current.getCurrentTime) {
         try {
           const t = playerRef.current.getCurrentTime();
@@ -123,10 +127,11 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
 
   // Handle external seek requests (e.g. from notes or transcript clicks)
   useEffect(() => {
-    if (playerRef.current && playerRef.current.seekTo && isReady) {
+    if (playerRef.current && typeof playerRef.current.seekTo === 'function' && isReady) {
       try {
-        const current = playerRef.current.getCurrentTime();
-        if (Math.abs(current - currentTime) > 2) {
+        const current = playerRef.current.getCurrentTime ? playerRef.current.getCurrentTime() : 0;
+        if (Math.abs(current - currentTime) > 1.0) {
+          lastSeekTimestampRef.current = Date.now();
           playerRef.current.seekTo(currentTime, true);
         }
       } catch (_) {}
@@ -179,8 +184,14 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   };
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+    if (isNaN(seconds) || seconds < 0) return '0:00';
+    const totalSecs = Math.floor(seconds);
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    if (hrs > 0) {
+      return `${hrs}:${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
