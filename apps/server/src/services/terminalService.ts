@@ -2,6 +2,8 @@ import { spawn, ChildProcess } from 'child_process';
 import os from 'os';
 import { WebSocket } from 'ws';
 import { SecurePathResolver } from '../utils/securePath';
+import { EnvService } from './envService';
+import { PortProxyService } from './portProxyService';
 
 let pty: any = null;
 try {
@@ -20,7 +22,7 @@ interface TerminalSession {
 export class TerminalService {
   private static sessions: Map<string, TerminalSession> = new Map();
 
-  static handleConnection(ws: WebSocket, projectId: string) {
+  static async handleConnection(ws: WebSocket, projectId: string) {
     let projectRoot: string;
     try {
       projectRoot = SecurePathResolver.getProjectRoot(projectId);
@@ -30,12 +32,16 @@ export class TerminalService {
       return;
     }
 
+    const envVars = await EnvService.getEnvVars(projectId);
+    const customEnv = EnvService.getEnvObject(envVars);
+
     const isWindows = os.platform() === 'win32';
     const shell = isWindows
       ? 'powershell.exe'
       : process.env.SHELL || '/bin/bash';
 
     const sessionId = `${projectId}-${Date.now()}`;
+    const portRegex = /(?:localhost|127\.0\.0\.1|port|listening on)[\s:]+(\d{2,5})/i;
 
     // Preferred: True PTY (ConPTY on Windows / PTY on Linux & macOS)
     if (pty) {
@@ -47,6 +53,7 @@ export class TerminalService {
           cwd: projectRoot,
           env: {
             ...process.env,
+            ...customEnv,
             TERM: 'xterm-256color',
             COLORTERM: 'truecolor',
           },
@@ -57,6 +64,13 @@ export class TerminalService {
         ptyProcess.onData((data: string) => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(data);
+          }
+          const match = data.match(portRegex);
+          if (match && match[1]) {
+            const port = parseInt(match[1], 10);
+            if (port >= 1000 && port <= 65535) {
+              PortProxyService.registerPort(projectId, port);
+            }
           }
         });
 

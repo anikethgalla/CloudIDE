@@ -213,4 +213,52 @@ export class ApiClient {
       body: JSON.stringify(req),
     });
   }
+
+  // ==========================================
+  // WORKSPACE DEVELOPMENT ENVIRONMENT APIS
+  // ==========================================
+  static async getDiagnostics(refresh = false): Promise<any> {
+    return this.request(`/api/workspaces/diagnostics${refresh ? '?refresh=true' : ''}`);
+  }
+
+  static async detectProject(projectId: string): Promise<any> {
+    return this.request(`/api/workspaces/${projectId}/detect`);
+  }
+
+  static async getPorts(projectId: string): Promise<any[]> {
+    return this.request(`/api/workspaces/${projectId}/ports`);
+  }
+
+  static async getEnv(projectId: string): Promise<any[]> {
+    return this.request(`/api/workspaces/${projectId}/env`);
+  }
+
+  static async saveEnv(projectId: string, vars: any[]): Promise<any[]> {
+    return this.request(`/api/workspaces/${projectId}/env`, {
+      method: 'POST',
+      body: JSON.stringify({ vars }),
+    });
+  }
+
+  static async getProcesses(projectId: string): Promise<any[]> {
+    return this.request(`/api/workspaces/${projectId}/processes`);
+  }
+
+  static async startProcess(
+    projectId: string,
+    command: string,
+    args: string[] = [],
+    name?: string
+  ): Promise<any> {
+    return this.request(`/api/workspaces/${projectId}/processes`, {
+      method: 'POST',
+      body: JSON.stringify({ command, args, name }),
+    });
+  }
+
+  static async stopProcess(projectId: string, procId: string): Promise<{ success: boolean }> {
+    return this.request(`/api/workspaces/${projectId}/processes/${procId}`, {
+      method: 'DELETE',
+    });
+  }
 }

@@ -769,6 +769,112 @@ npm run dev
     }
   },
   {
+    id: 'go',
+    name: 'Go',
+    description: 'Go module environment with go run, build, and test toolchain',
+    language: 'go',
+    icon: 'go',
+    defaultEntryFile: 'main.go',
+    files: {
+      'main.go': `package main
+
+import (
+	"fmt"
+	"runtime"
+	"time"
+)
+
+func main() {
+	fmt.Println("🚀 Welcome to Go in Cloud IDE!")
+	fmt.Printf("Go Version: %s on %s/%s\\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	fmt.Println("-------------------------------------------")
+
+	features := []string{
+		"Fast Compilation",
+		"Built-in Concurrency (Goroutines & Channels)",
+		"Static Typing & Memory Safety",
+		"Standard Go Modules & Toolchain",
+	}
+
+	for i, f := range features {
+		fmt.Printf("  [%d] %s\\n", i+1, f)
+	}
+
+	fmt.Println("\\nCalculating concurrency sample...")
+	ch := make(chan string)
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		ch <- "Goroutine finished successfully! ✅"
+	}()
+
+	fmt.Println(<-ch)
+}
+`,
+      'go.mod': `module starter-go-app
+
+go 1.22
+`,
+      'README.md': `# Go Project
+
+Run this project using the **Run** button or in the terminal:
+
+\`\`\`bash
+go run .
+# or
+go build -o app && ./app
+\`\`\`
+`
+    }
+  },
+  {
+    id: 'rust',
+    name: 'Rust (Cargo)',
+    description: 'Modern Rust project with Cargo build system, crates, and tests',
+    language: 'rust',
+    icon: 'rust',
+    defaultEntryFile: 'src/main.rs',
+    files: {
+      'Cargo.toml': `[package]
+name = "rust-starter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+`,
+      'src/main.rs': `fn main() {
+    println!("🦀 Welcome to Rust in Cloud IDE!");
+    println!("-----------------------------------------");
+
+    let features = vec![
+        "Zero-Cost Abstractions",
+        "Guaranteed Memory Safety (Borrow Checker)",
+        "Fearless Concurrency",
+        "First-Class Cargo Ecosystem",
+    ];
+
+    println!("Rust Features in this environment:");
+    for (i, f) in features.iter().enumerate() {
+        println!("  [{}] {}", i + 1, f);
+    }
+
+    let numbers: Vec<i32> = (1..=10).collect();
+    let sum: i32 = numbers.iter().map(|x| x * x).sum();
+    println!("\\nSum of squares (1..10) = {}", sum);
+}
+`,
+      'README.md': `# Rust Project
+
+Run this project using the **Run** button or in the terminal:
+
+\`\`\`bash
+cargo run
+# or
+cargo test
+\`\`\`
+`
+    }
+  },
+  {
     id: 'empty',
     name: 'Empty Project',
     description: 'A clean slate with no predefined files',

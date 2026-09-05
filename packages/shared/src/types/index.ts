@@ -5,6 +5,8 @@ export type Language =
   | 'java'
   | 'cpp'
   | 'c'
+  | 'go'
+  | 'rust'
   | 'html'
   | 'css'
   | 'json'
@@ -18,9 +20,62 @@ export type TemplateId =
   | 'python'
   | 'cpp'
   | 'java'
+  | 'go'
+  | 'rust'
   | 'html'
   | 'react'
   | 'nextjs';
+
+export interface WorkspacePort {
+  port: number;
+  processName?: string;
+  protocol: 'http' | 'https' | 'ws';
+  status: 'open' | 'closed';
+  url?: string;
+}
+
+export interface WorkspaceEnvVar {
+  key: string;
+  value: string;
+  isSecret?: boolean;
+}
+
+export interface ToolchainItem {
+  name: string;
+  command: string;
+  version: string | null;
+  available: boolean;
+  category: 'runtime' | 'package_manager' | 'compiler' | 'vcs';
+}
+
+export interface ToolchainDiagnostics {
+  tools: ToolchainItem[];
+  timestamp: string;
+}
+
+export interface DetectedProjectType {
+  type: string;
+  name: string;
+  language: Language;
+  buildTool?: string;
+  packageManager?: string;
+  suggestedRunCommands: Array<{ label: string; command: string }>;
+  framework?: string;
+}
+
+export interface WorkspaceProcess {
+  id: string;
+  projectId: string;
+  name: string;
+  command: string;
+  args: string[];
+  pid?: number;
+  status: 'running' | 'stopped' | 'failed' | 'completed';
+  startTime: string;
+  endTime?: string;
+  exitCode?: number | null;
+  port?: number;
+}
 
 export interface ProjectTemplate {
   id: TemplateId;

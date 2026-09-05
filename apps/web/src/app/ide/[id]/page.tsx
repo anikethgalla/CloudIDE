@@ -11,6 +11,7 @@ import {
   TutorialMetadata,
   LearningCheckpoint,
   RebuildSpecification,
+  DetectedProjectType,
 } from '@cloud-ide/shared';
 import { ApiClient } from '@/services/api';
 import { getLanguageFromFilename } from '@/lib/fileIcons';
@@ -23,6 +24,9 @@ import { MonacoEditorPane } from '@/components/editor/MonacoEditorPane';
 import { XTermTerminal } from '@/components/terminal/XTermTerminal';
 import { OutputPanel } from '@/components/output/OutputPanel';
 import { WebPreview } from '@/components/preview/WebPreview';
+import { PortsPanel } from '@/components/workspace/PortsPanel';
+import { EnvironmentModal } from '@/components/workspace/EnvironmentModal';
+import { DiagnosticsModal } from '@/components/workspace/DiagnosticsModal';
 import { YouTubePlayer } from '@/components/tutorial/YouTubePlayer';
 import { TranscriptPanel } from '@/components/tutorial/TranscriptPanel';
 import { NotesPanel } from '@/components/tutorial/NotesPanel';
@@ -32,7 +36,7 @@ import { RebuildSpecView } from '@/components/tutorial/RebuildSpecView';
 import { ShortcutsModal } from '@/components/modal/ShortcutsModal';
 import { ImportTutorialModal } from '@/components/modal/ImportTutorialModal';
 import { ActiveSidePanel, ActiveBottomTab, ActiveRightTab } from '@/types';
-import { Terminal, Bug, Play, Globe, Loader2, Youtube, BrainCircuit, FileText, Target, Sparkles } from 'lucide-react';
+import { Terminal, Bug, Play, Globe, Loader2, Youtube, BrainCircuit, FileText, Target, Sparkles, Network } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function IDEPage() {
@@ -43,6 +47,7 @@ export default function IDEPage() {
   // State: Project & Tutorial
   const [project, setProject] = useState<Project | null>(null);
   const [tutorial, setTutorial] = useState<TutorialMetadata | null>(null);
+  const [detectedProject, setDetectedProject] = useState<DetectedProjectType | null>(null);
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -71,6 +76,8 @@ export default function IDEPage() {
   // State: Modals
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
+  const [isDiagnosticsModalOpen, setIsDiagnosticsModalOpen] = useState(false);
 
   // State: Terminal & Execution
   const [isTerminalConnected, setIsTerminalConnected] = useState(false);
@@ -107,6 +114,9 @@ export default function IDEPage() {
 
       const files = await ApiClient.getFiles(projectId);
       setFileTree(files);
+
+      // Detect project type & framework
+      ApiClient.detectProject(projectId).then(setDetectedProject).catch(() => {});
 
       if (proj.entryFile) {
         openFileByPath(proj.entryFile, files);
@@ -496,6 +506,7 @@ export default function IDEPage() {
       <TopBar
         project={project}
         tutorial={tutorial}
+        detectedProject={detectedProject}
         executionStatus={executionStatus}
         isSidebarOpen={isSidebarOpen}
         isBottomPanelOpen={isBottomPanelOpen}
@@ -510,6 +521,8 @@ export default function IDEPage() {
         onToggleBlindfold={() => setIsBlindfoldEnabled(!isBlindfoldEnabled)}
         onStartRebuild={handleStartRebuild}
         onOpenImportModal={() => setIsImportModalOpen(true)}
+        onOpenEnvModal={() => setIsEnvModalOpen(true)}
+        onOpenDiagnostics={() => setIsDiagnosticsModalOpen(true)}
         onRun={handleRun}
         onStop={handleStop}
         onSaveAll={handleSaveAll}
@@ -610,6 +623,19 @@ export default function IDEPage() {
                 </button>
 
                 <button
+                  onClick={() => setActiveBottomTab('ports')}
+                  className={cn(
+                    'flex items-center space-x-1.5 px-3 py-1 rounded-sm text-xs font-medium transition-colors',
+                    activeBottomTab === 'ports'
+                      ? 'text-zinc-100 bg-zinc-800/80'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                  )}
+                >
+                  <Network className="w-3.5 h-3.5" />
+                  <span>Ports</span>
+                </button>
+
+                <button
                   onClick={() => setActiveBottomTab('output')}
                   className={cn(
                     'flex items-center space-x-1.5 px-3 py-1 rounded-sm text-xs font-medium transition-colors',
@@ -641,6 +667,17 @@ export default function IDEPage() {
                   <XTermTerminal
                     projectId={projectId}
                     onConnectionChange={setIsTerminalConnected}
+                  />
+                )}
+                {activeBottomTab === 'ports' && (
+                  <PortsPanel
+                    projectId={projectId}
+                    onOpenPreview={(port) => {
+                      const url = `http://localhost:4000/api/proxy/${projectId}/${port}/`;
+                      setPreviewUrl(url);
+                      setActiveRightTab('preview');
+                      setIsRightPanelOpen(true);
+                    }}
                   />
                 )}
                 {activeBottomTab === 'output' && (
@@ -772,6 +809,17 @@ export default function IDEPage() {
           const newProj = await ApiClient.importTutorial(payload);
           router.push(`/ide/${newProj.id}`);
         }}
+      />
+
+      <EnvironmentModal
+        isOpen={isEnvModalOpen}
+        onClose={() => setIsEnvModalOpen(false)}
+        projectId={projectId}
+      />
+
+      <DiagnosticsModal
+        isOpen={isDiagnosticsModalOpen}
+        onClose={() => setIsDiagnosticsModalOpen(false)}
       />
     </div>
   );

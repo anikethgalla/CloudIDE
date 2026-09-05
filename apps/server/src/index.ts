@@ -14,6 +14,8 @@ import { ExecutionController } from './controllers/executionController';
 import { TutorialController } from './controllers/tutorialController';
 import { NotesController } from './controllers/notesController';
 import { AIController } from './controllers/aiController';
+import { WorkspaceController } from './controllers/workspaceController';
+import { PortProxyService } from './services/portProxyService';
 import { handleTerminalWebSocket } from './websocket/terminalHandler';
 import { handleExecutionWebSocket } from './websocket/executionHandler';
 
@@ -80,6 +82,23 @@ async function bootstrap() {
 
   // Socratic AI (Gemini)
   app.post('/api/tutorials/:projectId/socratic-ai', AIController.socraticGuidance);
+
+  // ==========================================
+  // WORKSPACE DEVELOPMENT ENVIRONMENT ROUTES
+  // ==========================================
+  app.get('/api/workspaces/diagnostics', WorkspaceController.getDiagnostics);
+  app.get('/api/workspaces/:projectId/detect', WorkspaceController.detectProject);
+  app.get('/api/workspaces/:projectId/ports', WorkspaceController.getPorts);
+  app.get('/api/workspaces/:projectId/env', WorkspaceController.getEnv);
+  app.post('/api/workspaces/:projectId/env', WorkspaceController.saveEnv);
+  app.get('/api/workspaces/:projectId/processes', WorkspaceController.getProcesses);
+  app.post('/api/workspaces/:projectId/processes', WorkspaceController.startProcess);
+  app.delete('/api/workspaces/:projectId/processes/:procId', WorkspaceController.stopProcess);
+
+  // Port Reverse Proxy for Live Web Previews
+  app.use('/api/proxy/:projectId/:port', (req, res) => {
+    PortProxyService.handleProxyRequest(req, res);
+  });
 
   // WebSocket Server Setup
   const wssTerminal = new WebSocketServer({ noServer: true });

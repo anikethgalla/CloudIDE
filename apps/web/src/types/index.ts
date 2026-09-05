@@ -12,7 +12,7 @@ import {
 } from '@cloud-ide/shared';
 
 export type ActiveSidePanel = 'explorer' | 'search' | 'github' | 'settings';
-export type ActiveBottomTab = 'terminal' | 'output' | 'problems' | 'preview';
+export type ActiveBottomTab = 'terminal' | 'output' | 'problems' | 'ports' | 'preview';
 export type ActiveRightTab =
   | 'tutorial'
   | 'transcript'

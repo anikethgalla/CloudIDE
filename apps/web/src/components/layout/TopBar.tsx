@@ -19,15 +19,19 @@ import {
   Sparkles,
   Layers,
   FolderOpen,
+  Key,
+  Cpu,
+  Network,
 } from 'lucide-react';
 import Link from 'next/link';
-import { Project, ExecutionStatus, TutorialMetadata } from '@cloud-ide/shared';
+import { Project, ExecutionStatus, TutorialMetadata, DetectedProjectType } from '@cloud-ide/shared';
 import { ActiveRightTab } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface TopBarProps {
   project: Project | null;
   tutorial: TutorialMetadata | null;
+  detectedProject?: DetectedProjectType | null;
   executionStatus: ExecutionStatus;
   isSidebarOpen: boolean;
   isBottomPanelOpen: boolean;
@@ -42,6 +46,8 @@ interface TopBarProps {
   onToggleBlindfold: () => void;
   onStartRebuild: () => void;
   onOpenImportModal: () => void;
+  onOpenEnvModal?: () => void;
+  onOpenDiagnostics?: () => void;
   onRun: () => void;
   onStop: () => void;
   onSaveAll: () => void;
@@ -50,6 +56,7 @@ interface TopBarProps {
 export const TopBar: React.FC<TopBarProps> = ({
   project,
   tutorial,
+  detectedProject,
   executionStatus,
   isSidebarOpen,
   isBottomPanelOpen,
@@ -64,6 +71,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleBlindfold,
   onStartRebuild,
   onOpenImportModal,
+  onOpenEnvModal,
+  onOpenDiagnostics,
   onRun,
   onStop,
   onSaveAll,
@@ -104,6 +113,13 @@ export const TopBar: React.FC<TopBarProps> = ({
           <span className="text-xs font-medium text-zinc-200 truncate max-w-[160px]">
             {project?.name || 'Loading workspace...'}
           </span>
+
+          {detectedProject && (
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 hidden lg:inline">
+              {detectedProject.name}
+            </span>
+          )}
+
           {hasTutorial && (
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center gap-1">
               <Youtube className="w-3 h-3" />
@@ -119,8 +135,29 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
       </div>
 
-      {/* Center: Execution & Active Recall Controls */}
+      {/* Center: Execution & Tools */}
       <div className="flex items-center space-x-2">
+        {onOpenEnvModal && (
+          <button
+            onClick={onOpenEnvModal}
+            className="flex items-center space-x-1 px-2.5 py-1.5 rounded-md bg-zinc-850 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-750 text-xs transition-colors"
+            title="Workspace Environment Variables (.env)"
+          >
+            <Key className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden lg:inline">.env</span>
+          </button>
+        )}
+
+        {onOpenDiagnostics && (
+          <button
+            onClick={onOpenDiagnostics}
+            className="flex items-center space-x-1 px-2.5 py-1.5 rounded-md bg-zinc-850 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-750 text-xs transition-colors"
+            title="Environment & Toolchain Diagnostics"
+          >
+            <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden lg:inline">Toolchains</span>
+          </button>
+        )}
         {/* Run / Stop Button */}
         {isRunning ? (
           <button
