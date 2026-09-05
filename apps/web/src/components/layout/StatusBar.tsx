@@ -9,6 +9,9 @@ import {
   Terminal,
   Globe,
   Code,
+  EyeOff,
+  Eye,
+  Sparkles,
 } from 'lucide-react';
 import { ExecutionStatus } from '@cloud-ide/shared';
 import { cn } from '@/lib/utils';
@@ -19,6 +22,9 @@ interface StatusBarProps {
   executionStatus: ExecutionStatus;
   previewUrl: string | null;
   isTerminalConnected: boolean;
+  isBlindfoldActive?: boolean;
+  videoTimestamp?: number;
+  isRebuildMode?: boolean;
   onOpenTerminal: () => void;
   onOpenPreview: () => void;
 }
@@ -29,6 +35,9 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   executionStatus,
   previewUrl,
   isTerminalConnected,
+  isBlindfoldActive = false,
+  videoTimestamp,
+  isRebuildMode = false,
   onOpenTerminal,
   onOpenPreview,
 }) => {
@@ -78,8 +87,14 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     }
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
   return (
-    <footer className="h-6 bg-ide-sidebar border-t border-ide-border flex items-center justify-between px-3 text-[11px] select-none text-zinc-400 z-30">
+    <footer className="h-6 bg-ide-sidebar border-t border-ide-border flex items-center justify-between px-3 text-[11px] select-none text-zinc-400 z-30 font-sans">
       {/* Left items */}
       <div className="flex items-center space-x-3">
         {getStatusBadge()}
@@ -100,6 +115,35 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           />
           <span>{isTerminalConnected ? 'Sandbox Active' : 'Terminal Idle'}</span>
         </button>
+
+        {isRebuildMode ? (
+          <>
+            <div className="h-3 w-[1px] bg-ide-border" />
+            <div className="flex items-center space-x-1 text-amber-400 font-medium">
+              <Sparkles className="w-3 h-3" />
+              <span>Rebuild from Memory</span>
+            </div>
+          </>
+        ) : videoTimestamp !== undefined ? (
+          <>
+            <div className="h-3 w-[1px] bg-ide-border" />
+            <div className="flex items-center space-x-1 text-sky-400 font-mono">
+              <Clock className="w-3 h-3" />
+              <span>Tutorial: {formatTime(videoTimestamp)}</span>
+            </div>
+
+            <div className="h-3 w-[1px] bg-ide-border" />
+            <div
+              className={cn(
+                'flex items-center space-x-1',
+                isBlindfoldActive ? 'text-amber-400 font-medium' : 'text-zinc-500'
+              )}
+            >
+              {isBlindfoldActive ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              <span>{isBlindfoldActive ? 'Blindfold On' : 'Blindfold Off'}</span>
+            </div>
+          </>
+        ) : null}
 
         {previewUrl && (
           <>

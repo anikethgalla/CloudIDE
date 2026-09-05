@@ -11,6 +11,9 @@ import { DockerSandboxService } from './services/sandboxService';
 import { ProjectController } from './controllers/projectController';
 import { FileController } from './controllers/fileController';
 import { ExecutionController } from './controllers/executionController';
+import { TutorialController } from './controllers/tutorialController';
+import { NotesController } from './controllers/notesController';
+import { AIController } from './controllers/aiController';
 import { handleTerminalWebSocket } from './websocket/terminalHandler';
 import { handleExecutionWebSocket } from './websocket/executionHandler';
 
@@ -59,6 +62,25 @@ async function bootstrap() {
   app.post('/api/projects/:id/run', ExecutionController.run);
   app.post('/api/projects/:id/stop', ExecutionController.stop);
 
+  // ==========================================
+  // PROJECT BREAKOUT: TUTORIAL & LEARNING ROUTES
+  // ==========================================
+  app.post('/api/tutorials/import', TutorialController.importTutorial);
+  app.get('/api/tutorials/:projectId', TutorialController.getTutorial);
+  app.get('/api/tutorials/:projectId/transcript', TutorialController.getTranscript);
+  app.post('/api/tutorials/:projectId/checkpoints/:checkpointId/complete', TutorialController.completeCheckpoint);
+  app.post('/api/tutorials/:projectId/rebuild/start', TutorialController.startRebuild);
+  app.post('/api/tutorials/:projectId/events', TutorialController.recordEvent);
+  app.get('/api/tutorials/:projectId/events', TutorialController.getEvents);
+
+  // Timestamped Notes
+  app.get('/api/tutorials/:projectId/notes', NotesController.getNotes);
+  app.post('/api/tutorials/:projectId/notes', NotesController.saveNote);
+  app.delete('/api/tutorials/:projectId/notes/:noteId', NotesController.deleteNote);
+
+  // Socratic AI (Gemini)
+  app.post('/api/tutorials/:projectId/socratic-ai', AIController.socraticGuidance);
+
   // WebSocket Server Setup
   const wssTerminal = new WebSocketServer({ noServer: true });
   const wssExecute = new WebSocketServer({ noServer: true });
@@ -90,7 +112,7 @@ async function bootstrap() {
 
   server.listen(config.port, config.host, () => {
     console.log(`\n======================================================`);
-    console.log(`🚀 Cloud IDE Backend Server listening on http://${config.host}:${config.port}`);
+    console.log(`🚀 Project Breakout Cloud IDE Backend listening on http://${config.host}:${config.port}`);
     console.log(`🔌 WebSocket Terminal Endpoint: ws://${config.host}:${config.port}/ws/terminal`);
     console.log(`🔌 WebSocket Execution Endpoint: ws://${config.host}:${config.port}/ws/execute`);
     console.log(`======================================================\n`);
