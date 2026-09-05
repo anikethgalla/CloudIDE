@@ -12,8 +12,9 @@
     "dev:server": "npm run dev --workspace=apps/server",
     "worker": "npm run worker --workspace=apps/server",
     "dev:all": "npm run dev",
+    "seed": "npm run seed --workspace=apps/server",
     "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces"
+    "test": "npm run test --workspace=apps/server"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

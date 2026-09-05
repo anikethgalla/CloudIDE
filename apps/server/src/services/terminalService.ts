@@ -17,6 +17,8 @@ interface TerminalSession {
   process?: ChildProcess;
   ptyProcess?: any;
   ws: WebSocket;
+  isAlive: boolean;
+  heartbeatInterval?: NodeJS.Timeout;
 }
 
 export class TerminalService {
@@ -27,8 +29,10 @@ export class TerminalService {
     try {
       projectRoot = SecurePathResolver.getProjectRoot(projectId);
     } catch (err: any) {
-      ws.send(`\r\n\x1b[31mError: ${err.message}\x1b[0m\r\n`);
-      ws.close();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(`\r\n\x1b[31mError: ${err.message}\x1b[0m\r\n`);
+        ws.close();
+      }
       return;
     }
 
@@ -40,125 +44,197 @@ export class TerminalService {
       ? 'powershell.exe'
       : process.env.SHELL || '/bin/bash';
 
-    const sessionId = `${projectId}-${Date.now()}`;
+    const sessionId = `${projectId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const portRegex = /(?:localhost|127\.0\.0\.1|port|listening on)[\s:]+(\d{2,5})/i;
 
-    // Preferred: True PTY (ConPTY on Windows / PTY on Linux & macOS)
-    if (pty) {
-      try {
-        const ptyProcess = pty.spawn(shell, isWindows ? ['-NoLogo'] : ['-i'], {
-          name: 'xterm-256color',
-          cols: 80,
-          rows: 24,
-          cwd: projectRoot,
-          env: {
-            ...process.env,
-            ...customEnv,
-            TERM: 'xterm-256color',
-            COLORTERM: 'truecolor',
-          },
-        });
+    let currentPty: any = null;
+    let currentProc: ChildProcess | null = null;
 
-        this.sessions.set(sessionId, { projectId, ptyProcess, ws });
+    // Heartbeat ping/pong keepalive
+    let isAlive = true;
+    ws.on('pong', () => {
+      isAlive = true;
+    });
 
-        ptyProcess.onData((data: string) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(data);
-          }
-          const match = data.match(portRegex);
-          if (match && match[1]) {
-            const port = parseInt(match[1], 10);
-            if (port >= 1000 && port <= 65535) {
-              PortProxyService.registerPort(projectId, port);
-            }
-          }
-        });
-
-        ptyProcess.onExit(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send('\r\n\x1b[33mSession ended.\x1b[0m\r\n');
-            ws.close();
-          }
-          this.sessions.delete(sessionId);
-        });
-
-        ws.on('message', (message: string) => {
-          try {
-            const msg = JSON.parse(message.toString());
-            if (msg.type === 'input' && msg.data) {
-              ptyProcess.write(msg.data);
-            } else if (msg.type === 'resize' && msg.cols && msg.rows) {
-              try {
-                ptyProcess.resize(Math.max(10, msg.cols), Math.max(5, msg.rows));
-              } catch (_) {}
-            }
-          } catch (_) {
-            ptyProcess.write(message.toString());
-          }
-        });
-
-        ws.on('close', () => {
-          try {
-            ptyProcess.kill();
-          } catch (_) {}
-          this.sessions.delete(sessionId);
-        });
-
+    const heartbeatInterval = setInterval(() => {
+      if (!isAlive) {
+        console.log(`[TerminalService] Socket inactive for session ${sessionId}, terminating.`);
+        cleanup();
+        ws.terminate();
         return;
-      } catch (err) {
-        console.error('[TerminalService] PTY spawn failed, falling back:', err);
       }
-    }
-
-    // Fallback: Standard child process spawn
-    const shellArgs = isWindows ? [] : ['-i'];
-    const proc = spawn(shell, shellArgs, {
-      cwd: projectRoot,
-      env: {
-        ...process.env,
-        TERM: 'xterm-256color',
-        COLORTERM: 'truecolor',
-      },
-    });
-
-    this.sessions.set(sessionId, { projectId, process: proc, ws });
-
-    proc.stdout?.on('data', (data) => {
+      isAlive = false;
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data.toString());
+        ws.ping();
       }
-    });
+    }, 25000);
 
-    proc.stderr?.on('data', (data) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data.toString());
+    const cleanup = () => {
+      clearInterval(heartbeatInterval);
+      if (currentPty) {
+        try {
+          currentPty.kill();
+        } catch (_) {}
+        currentPty = null;
       }
-    });
+      if (currentProc) {
+        try {
+          currentProc.kill();
+        } catch (_) {}
+        currentProc = null;
+      }
+      TerminalService.sessions.delete(sessionId);
+    };
 
-    proc.on('close', () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send('\r\n\x1b[33mSession ended.\x1b[0m\r\n');
-        ws.close();
+    // Helper to spawn a shell process
+    const spawnShell = () => {
+      if (pty) {
+        try {
+          const ptyProcess = pty.spawn(shell, isWindows ? ['-NoLogo'] : ['-i'], {
+            name: 'xterm-256color',
+            cols: 80,
+            rows: 24,
+            cwd: projectRoot,
+            env: {
+              ...process.env,
+              ...customEnv,
+              TERM: 'xterm-256color',
+              COLORTERM: 'truecolor',
+            },
+          });
+
+          currentPty = ptyProcess;
+
+          ptyProcess.onData((data: string) => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(data);
+            }
+            const match = data.match(portRegex);
+            if (match && match[1]) {
+              const port = parseInt(match[1], 10);
+              if (port >= 1000 && port <= 65535) {
+                PortProxyService.registerPort(projectId, port);
+              }
+            }
+          });
+
+          ptyProcess.onExit(({ exitCode, signal }: { exitCode: number; signal?: number }) => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(`\r\n\x1b[33m[Process exited with code ${exitCode}. Press Enter to restart shell]\x1b[0m\r\n`);
+            }
+            currentPty = null;
+          });
+
+          return true;
+        } catch (err) {
+          console.error('[TerminalService] PTY spawn failed, falling back:', err);
+        }
       }
-      this.sessions.delete(sessionId);
+
+      // Fallback: Standard child process spawn
+      const shellArgs = isWindows ? [] : ['-i'];
+      const proc = spawn(shell, shellArgs, {
+        cwd: projectRoot,
+        env: {
+          ...process.env,
+          TERM: 'xterm-256color',
+          COLORTERM: 'truecolor',
+        },
+      });
+
+      currentProc = proc;
+
+      proc.stdout?.on('data', (data) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(data.toString());
+        }
+      });
+
+      proc.stderr?.on('data', (data) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(data.toString());
+        }
+      });
+
+      proc.on('close', (code) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(`\r\n\x1b[33m[Process exited with code ${code}. Press Enter to restart shell]\x1b[0m\r\n`);
+        }
+        currentProc = null;
+      });
+
+      return false;
+    };
+
+    // Initial spawn
+    spawnShell();
+
+    TerminalService.sessions.set(sessionId, {
+      projectId,
+      ptyProcess: currentPty,
+      process: currentProc || undefined,
+      ws,
+      isAlive: true,
+      heartbeatInterval,
     });
 
     ws.on('message', (message: string) => {
+      isAlive = true;
       try {
         const msg = JSON.parse(message.toString());
-        if (msg.type === 'input' && msg.data) {
-          proc.stdin?.write(msg.data);
+
+        // Handle keepalive ping
+        if (msg.type === 'ping') {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'pong' }));
+          }
+          return;
+        }
+
+        if (msg.type === 'input' && msg.data !== undefined) {
+          // If no active process, restart on Enter or input
+          if (!currentPty && !currentProc) {
+            spawnShell();
+          }
+
+          if (currentPty) {
+            currentPty.write(msg.data);
+          } else {
+            const proc = currentProc as ChildProcess | null;
+            if (proc && proc.stdin) {
+              proc.stdin.write(msg.data);
+            }
+          }
+        } else if (msg.type === 'resize' && msg.cols && msg.rows) {
+          if (currentPty) {
+            try {
+              currentPty.resize(Math.max(10, msg.cols), Math.max(5, msg.rows));
+            } catch (_) {}
+          }
         }
       } catch (_) {
-        proc.stdin?.write(message.toString());
+        // Raw string input
+        if (!currentPty && !currentProc) {
+          spawnShell();
+        }
+        if (currentPty) {
+          currentPty.write(message.toString());
+        } else {
+          const proc = currentProc as ChildProcess | null;
+          if (proc && proc.stdin) {
+            proc.stdin.write(message.toString());
+          }
+        }
       }
     });
 
     ws.on('close', () => {
-      try {
-        proc.kill();
-      } catch (_) {}
-      this.sessions.delete(sessionId);
+      cleanup();
+    });
+
+    ws.on('error', (err) => {
+      console.warn(`[TerminalService] WebSocket error on session ${sessionId}:`, err.message);
+      cleanup();
     });
   }
 }

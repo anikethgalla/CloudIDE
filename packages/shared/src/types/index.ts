@@ -17,6 +17,7 @@ export type Language =
 export type TemplateId =
   | 'empty'
   | 'nodejs'
+  | 'express'
   | 'python'
   | 'cpp'
   | 'java'

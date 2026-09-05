@@ -50,6 +50,102 @@ node index.js
     }
   },
   {
+    id: 'express',
+    name: 'Express.js',
+    description: 'REST API & Web server with Express, JSON middleware, and routing',
+    language: 'javascript',
+    icon: 'nodejs',
+    defaultEntryFile: 'server.js',
+    files: {
+      'server.js': `const express = require('express');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+// Sample in-memory items
+let items = [
+  { id: 1, name: 'Learn JavaScript', completed: true },
+  { id: 2, name: 'Build with Cloud IDE', completed: true },
+  { id: 3, name: 'Escape Tutorial Hell', completed: false }
+];
+
+// Health check / welcome route
+app.get('/', (req, res) => {
+  res.json({
+    message: '🚀 Express Server running in Cloud IDE sandbox!',
+    endpoints: {
+      'GET /api/items': 'List all items',
+      'POST /api/items': 'Create a new item',
+      'GET /api/stats': 'Server memory and uptime statistics'
+    },
+    uptime: process.uptime()
+  });
+});
+
+// GET /api/items
+app.get('/api/items', (req, res) => {
+  res.json({ success: true, count: items.length, data: items });
+});
+
+// POST /api/items
+app.post('/api/items', (req, res) => {
+  const { name } = req.body;
+  if (!name) {
+    return res.status(400).json({ success: false, error: 'Name is required' });
+  }
+  const newItem = {
+    id: items.length ? Math.max(...items.map(i => i.id)) + 1 : 1,
+    name,
+    completed: false
+  };
+  items.push(newItem);
+  res.status(201).json({ success: true, item: newItem });
+});
+
+// GET /api/stats
+app.get('/api/stats', (req, res) => {
+  res.json({
+    nodeVersion: process.version,
+    memoryUsage: process.memoryUsage(),
+    uptimeSeconds: Math.floor(process.uptime())
+  });
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(\`✅ Express server listening on http://localhost:\${PORT}\`);
+});
+`,
+      'package.json': `{
+  "name": "express-starter",
+  "version": "1.0.0",
+  "description": "Express.js REST API in Cloud IDE",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
+`,
+      'README.md': `# Express.js REST API
+
+Run the server with the **Run** button or in the terminal:
+
+\`\`\`bash
+npm install
+node server.js
+\`\`\`
+
+Test with curl in terminal:
+\`\`\`bash
+curl http://localhost:3000/api/items
+\`\`\`
+`
+    }
+  },
+  {
     id: 'python',
     name: 'Python',
     description: 'Python 3 environment for scripts, algorithms, and data processing',

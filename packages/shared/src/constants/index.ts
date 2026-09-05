@@ -51,6 +51,7 @@ export const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
 
 export const DEFAULT_ENTRY_FILES: Record<string, string> = {
   nodejs: 'index.js',
+  express: 'server.js',
   javascript: 'index.js',
   typescript: 'index.ts',
   python: 'main.py',
