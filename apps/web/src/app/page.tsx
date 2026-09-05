@@ -149,7 +149,7 @@ export default function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-6 py-10 flex-1 w-full space-y-12">
+      <main className="max-w-6xl mx-auto px-6 py-10 pb-20 flex-1 w-full space-y-12">
         {/* Hero Banner: Project Breakout Philosophy */}
         <section className="p-6 rounded-2xl bg-gradient-to-r from-sky-950/40 via-indigo-950/30 to-zinc-900 border border-sky-500/20 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
