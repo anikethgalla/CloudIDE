@@ -15,7 +15,9 @@ import { TutorialController } from './controllers/tutorialController';
 import { NotesController } from './controllers/notesController';
 import { AIController } from './controllers/aiController';
 import { WorkspaceController } from './controllers/workspaceController';
+import { JobController } from './controllers/jobController';
 import { PortProxyService } from './services/portProxyService';
+import { authMiddleware } from './middleware/auth';
 import { handleTerminalWebSocket } from './websocket/terminalHandler';
 import { handleExecutionWebSocket } from './websocket/executionHandler';
 
@@ -31,6 +33,7 @@ async function bootstrap() {
   app.use(cors());
   app.use(morgan('dev'));
   app.use(express.json());
+  app.use('/api', authMiddleware);
 
   // Health check
   app.get('/health', (req, res) => {
@@ -94,6 +97,12 @@ async function bootstrap() {
   app.get('/api/workspaces/:projectId/processes', WorkspaceController.getProcesses);
   app.post('/api/workspaces/:projectId/processes', WorkspaceController.startProcess);
   app.delete('/api/workspaces/:projectId/processes/:procId', WorkspaceController.stopProcess);
+
+  // ==========================================
+  // JOBS & AUTH USER SYNC ROUTES
+  // ==========================================
+  app.get('/api/jobs/:id', JobController.getJob);
+  app.post('/api/users/sync', JobController.syncUser);
 
   // Port Reverse Proxy for Live Web Previews
   app.use('/api/proxy/:projectId/:port', (req, res) => {

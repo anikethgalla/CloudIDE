@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { AuthProvider } from '@/components/auth/AuthProvider';
 
 export const metadata: Metadata = {
-  title: 'Cloud IDE - Browser-based Development Environment',
-  description: 'Full-stack cloud IDE with Monaco Editor, Docker sandbox, xterm.js terminal, and live previews',
+  title: 'Project Breakout - Escape Tutorial Hell • Code From First Principles',
+  description: 'Active learning browser-based IDE and developer environment. Turn passive video watching into permanent retention with Blindfold Mode, Socratic AI tutor, and Rebuild-from-memory.',
 };
 
 export default function RootLayout({
@@ -14,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="bg-ide-bg text-ide-textMain antialiased min-h-screen">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

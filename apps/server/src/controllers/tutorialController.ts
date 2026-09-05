@@ -1,8 +1,11 @@
 import { Request, Response } from 'express';
 import { TutorialService } from '../services/tutorial/tutorialService';
 import { TranscriptService } from '../services/youtube/transcriptService';
+import { YouTubeService } from '../services/youtube/youtubeService';
 import { RebuildService } from '../services/learning/rebuildService';
 import { LearningEventService } from '../services/learning/learningEventService';
+import { enqueueJob } from '../queues';
+import { Database } from '../db/db';
 
 export class TutorialController {
   static async importTutorial(req: Request, res: Response) {
@@ -12,14 +15,64 @@ export class TutorialController {
         return res.status(400).json({ error: 'YouTube URL is required' });
       }
 
-      const project = await TutorialService.importTutorial({
+      const videoId = YouTubeService.extractVideoId(url);
+      if (!videoId) {
+        return res.status(400).json({ error: `Invalid YouTube URL or Video ID: "${url}"` });
+      }
+
+      const userId = req.user?.id;
+      const isSync = req.query.sync === 'true';
+
+      if (isSync) {
+        const project = await TutorialService.importTutorial({
+          url,
+          template,
+          languageCode,
+          customName,
+          userId,
+        });
+        return res.status(201).json(project);
+      }
+
+      // Enqueue background job
+      const job = await enqueueJob(
+        'tutorial:import',
+        { url, template, languageCode, customName },
+        userId,
+        'tutorial'
+      );
+
+      // Trigger self-healing background processing in parallel
+      TutorialService.importTutorial({
         url,
         template,
         languageCode,
         customName,
-      });
+        userId,
+      })
+        .then(async (proj) => {
+          await Database.updateJob(job.id, {
+            status: 'COMPLETED',
+            progress: 100,
+            result: {
+              projectId: proj.id,
+              tutorialId: proj.tutorial?.id,
+              project: proj,
+            },
+          });
+        })
+        .catch(async (err) => {
+          await Database.updateJob(job.id, {
+            status: 'FAILED',
+            error: err.message,
+          });
+        });
 
-      res.status(201).json(project);
+      res.status(202).json({
+        jobId: job.id,
+        status: job.status,
+        message: 'Tutorial import queued for background processing.',
+      });
     } catch (err: any) {
       console.error('Tutorial import error:', err);
       res.status(500).json({ error: err.message || 'Failed to import YouTube tutorial' });

@@ -4,7 +4,7 @@ import React from 'react';
 import { useParams } from 'next/navigation';
 import { IDEWorkspace } from '@/components/ide/IDEWorkspace';
 
-export default function LegacyIDEPage() {
+export default function AppProjectIDEPage() {
   const params = useParams();
   const projectId = params.id as string;
 

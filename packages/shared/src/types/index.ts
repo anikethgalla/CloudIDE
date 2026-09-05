@@ -77,6 +77,37 @@ export interface WorkspaceProcess {
   port?: number;
 }
 
+export interface User {
+  id: string;
+  name?: string;
+  email: string;
+  image?: string;
+  avatar?: string;
+  provider?: 'github' | 'google' | 'developer';
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type JobStatus =
+  | 'QUEUED'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'RETRYING';
+
+export interface JobRecord {
+  id: string;
+  userId?: string;
+  type: string;
+  status: JobStatus;
+  progress: number; // 0 to 100
+  payload?: any;
+  result?: any;
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ProjectTemplate {
   id: TemplateId;
   name: string;
@@ -89,6 +120,7 @@ export interface ProjectTemplate {
 
 export interface Project {
   id: string;
+  userId?: string;
   name: string;
   description?: string;
   template: TemplateId;
@@ -197,6 +229,7 @@ export interface LearningCheckpoint {
 
 export interface TutorialMetadata {
   id: string;
+  userId?: string;
   projectId: string;
   youtubeUrl: string;
   videoId: string;
@@ -277,3 +310,5 @@ export interface LearningEvent {
   metadata?: Record<string, any>;
   createdAt: string;
 }
+
+

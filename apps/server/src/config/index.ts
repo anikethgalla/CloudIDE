@@ -14,6 +14,8 @@ export const config = {
   databaseUrl:
     process.env.DATABASE_URL ||
     'postgresql://postgres:postgres@localhost:5432/online_ide?schema=public',
+  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+  authSecret: process.env.AUTH_SECRET || 'project_breakout_dev_secret_key_32_chars',
   docker: {
     socketPath: process.env.DOCKER_SOCKET_PATH || undefined,
     memoryLimit: parseInt(process.env.SANDBOX_MEMORY_LIMIT || '536870912', 10), // 512MB

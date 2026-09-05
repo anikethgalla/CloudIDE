@@ -20,6 +20,7 @@ export class ProjectService {
     name: string;
     template: TemplateId;
     description?: string;
+    userId?: string;
   }): Promise<Project> {
     const id = uuidv4();
     const now = new Date().toISOString();
@@ -35,6 +36,7 @@ export class ProjectService {
 
     const project: Project = {
       id,
+      userId: payload.userId,
       name: payload.name.trim(),
       description: payload.description?.trim(),
       template: payload.template,
@@ -63,23 +65,28 @@ export class ProjectService {
     return project;
   }
 
-  static async listProjects(): Promise<Project[]> {
-    return Database.listProjects();
+  static async listProjects(userId?: string): Promise<Project[]> {
+    return Database.listProjects(userId);
   }
 
-  static async getProject(id: string): Promise<Project> {
-    const project = await Database.getProject(id);
+  static async getProject(id: string, userId?: string): Promise<Project> {
+    const project = await Database.getProject(id, userId);
     if (!project) {
-      throw new Error(`Project not found: "${id}"`);
+      throw new Error(`Project not found with ID: ${id}`);
     }
     return project;
   }
 
-  static async deleteProject(id: string): Promise<boolean> {
+  static async deleteProject(id: string, userId?: string): Promise<void> {
+    const project = await this.getProject(id, userId);
+
+    // Remove workspace folder
     const projectRoot = SecurePathResolver.getProjectRoot(id);
     if (fs.existsSync(projectRoot)) {
       fs.rmSync(projectRoot, { recursive: true, force: true });
     }
-    return Database.deleteProject(id);
+
+    // Remove DB entry
+    await Database.deleteProject(id, userId);
   }
 }

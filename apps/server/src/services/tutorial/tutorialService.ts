@@ -23,6 +23,7 @@ export class TutorialService {
     template?: TemplateId;
     languageCode?: string;
     customName?: string;
+    userId?: string;
   }): Promise<Project> {
     const videoId = YouTubeService.extractVideoId(payload.url);
     if (!videoId) {
@@ -59,6 +60,10 @@ export class TutorialService {
         chosenTemplate = 'java';
       } else if (lowerTitle.includes('html') || lowerTitle.includes('css')) {
         chosenTemplate = 'html';
+      } else if (lowerTitle.includes('rust') || lowerTitle.includes('cargo')) {
+        chosenTemplate = 'rust';
+      } else if (lowerTitle.includes('go') || lowerTitle.includes('golang')) {
+        chosenTemplate = 'go';
       }
     }
 
@@ -67,6 +72,7 @@ export class TutorialService {
     const project = await ProjectService.createProject({
       name: projectName,
       template: chosenTemplate,
+      userId: payload.userId,
       description: `Project Breakout workspace for: ${metadata.title}`,
     });
 
@@ -76,6 +82,7 @@ export class TutorialService {
 
     const tutorialMeta: TutorialMetadata = {
       id: uuidv4(),
+      userId: payload.userId,
       projectId: project.id,
       youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
       videoId,
@@ -96,6 +103,10 @@ export class TutorialService {
     // Attach to project return
     project.tutorial = tutorialMeta;
     return project;
+  }
+
+  static setTutorial(projectId: string, metadata: TutorialMetadata) {
+    this.tutorialStore.set(projectId, metadata);
   }
 
   static async getTutorial(projectId: string): Promise<TutorialMetadata | null> {
